@@ -8,7 +8,7 @@
 
 - 手持火把、萤石、灯笼、海晶灯等发光方块时，周围物体被暖白色的光斑照亮
 - 移动时，光斑随玩家连续扫过墙面和地面
-- 不渲染阴影、不做 PBR、没有 Bloom / SSAO 等后处理
+- 只做一次太阳/月亮阴影采样，不做 PBR、没有 Bloom / SSAO 等后处理
 
 ## 安装
 
@@ -46,7 +46,7 @@ shaders/
 - 六个 gbuffers 程序全部显式声明，走 Iris 的原生路由，不依赖 OptiFine 时代的 `gbuffers_textured_lit` 兜底
 - 每个程序文件只有 5 行，实际逻辑都在 `lib/` 的三个 include 里；改参数只需要动 `handlight_settings.glsl`
 - Sodium/Iris 的 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout` 回退到 `gbuffers_terrain`；`gbuffers_entities_translucent` / `gbuffers_block_translucent` 回退到各自的程序，所以主要几何都被覆盖
-- `shadow.enabled=false`，完全不跑 shadow pass
+- `shadow.enabled=true`，但不写自己的 `shadow.vsh/.fsh`，用 Iris 默认 shadow shader；gbuffers 里只采样一次 `shadowtex1`，且只压暗天光（方块光不受阴影影响）
 - 没有 composite / deferred，只有一次 `final` 拷贝
 - 每像素只在手持光源时多算一次 `length` + `dot` + 除法
 
