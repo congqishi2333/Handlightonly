@@ -66,20 +66,13 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 `heldBlockLightValue` 是 Iris/OptiFine 提供的 uniform，表示手持方块的亮度等级（0~15）。
 
-基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO 和方块染色，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
+基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO、方块染色和原版方向面光（`oldLighting=true`），天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
 
-方向面光不依赖 Iris 的 `oldLighting`（它默认 `false`，且只把系数乘到顶点色上），而是按 `normalWorld` 手动还原原版的四档系数：顶面 `1.0`、南北面 `0.8`、东西面 `0.6`、底面 `0.5`，只对地形生效。
+方向面光交给 `oldLighting=true`：Iris 会按模型面原本的 `shade` 标志把原版朝向系数烘焙进 `gl_Color`。普通方块是顶面 `1.0` / 南北面 `0.8` / 东西面 `0.6` / 底面 `0.5`；草、花等 cross 植物在模型里写着 `shade:false`，因此系数是 `1.0`，不会被手工法线判定误伤。
 
-关键是**乘的位置**：原版先把系数乘到光照等级上，再去 lightmap 查表。lightmap 是非线性曲线，查完表再乘系数会让垂直面/底面整体偏亮，只有顶面（系数 `1.0`）不受影响。因此实现里是：
+查表顺序也保持原版：原版 chunk shader 是 `vertexColor = Color * minecraft_sample_lightmap(...)`，即先查 lightmap、再乘顶点色。所以 shader 里直接用 `texture(lightmap, lmcoord)`，不做任何 `lmcoord` 缩放。
 
-```glsl
-vec2 shadedLm = (lmcoord - 0.03125) * faceLight + 0.03125;
-vec3 lightColor = texture(lightmap, shadedLm).rgb;
-```
-
-`lmcoord` 的编码是 `rawLight / 256 + 0.5/16`（原版光照等级 0~15 占 16 个子阶），所以上面的变换正好等价于缩放原始光照等级。
-
-**注意**：`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 **Iris 不会自动注入**，必须在对应的 `.fsh` 里显式 `#define`（Complementary 也是用 `world0/gbuffers_terrain.fsh` 这样的包装文件定义的）。本包已经在 `gbuffers_terrain.fsh` 和 `gbuffers_hand.fsh` 里定义好了；如果新增程序并用到这些宏，记得同样显式定义。
+`GBUFFERS_HAND` 这类宏 Iris 不会自动注入，`gbuffers_hand.fsh` 里显式 `#define` 了，用来跳过手持物自身的阴影采样。方向面光不再用 `GBUFFERS_TERRAIN`，所以那个宏已经移除。
 
 ## 调参
 

@@ -41,22 +41,9 @@ void main() {
     vec4 texel = texture(gtexture, texcoord);
     if (texel.a < 0.1) discard;
 
-    // 手动还原原版方向面光（oldLighting=false 时 gl_Color 只剩 AO + 染色）。
-    // 原版是「先把朝向系数乘到光照等级上，再去 lightmap 查表」，不能直接乘查表结果：
-    // lightmap 是非线性曲线，查表后乘会让垂直面/底面整体偏移，只有顶面（系数 1.0）不受影响。
-    // 原版系数：顶面 1.0 / 底面 0.5 / 南北面 0.8 / 东西面 0.6。
-    float faceLight = 1.0;
-    #ifdef GBUFFERS_TERRAIN
-        vec3 n = normalize(normalWorld);
-        if      (n.y >  0.5)        faceLight = 1.0;  // 顶面
-        else if (n.y < -0.5)        faceLight = 0.5;  // 底面
-        else if (abs(n.x) > 0.5)    faceLight = 0.6;  // 东西面
-        else                        faceLight = 0.8;  // 南北面
-    #endif
-
-    // lmcoord = rawLight / 256 + 0.5/16，缩放光照等级等价于缩放 (lmcoord - 0.5/16)
-    vec2 shadedLm = (lmcoord - 0.03125) * faceLight + 0.03125;
-    vec3 lightColor = texture(lightmap, shadedLm).rgb;
+    // 原版方向面光由 oldLighting=true 烘焙进 gl_Color（连 shade:false 的草也正确），
+    // lightmap 用原始 lmcoord 查表：原版本身就是「查表后再乘顶点色」
+    vec3 lightColor = texture(lightmap, lmcoord).rgb;
 
     // 阴影只压暗天光部分，方块光不受影响；手持物本身不投射阴影
     float skyLevel = clamp((lmcoord.y - 0.03125) * 1.06667, 0.0, 1.0);
