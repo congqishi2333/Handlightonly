@@ -1,8 +1,10 @@
 uniform sampler2D gtexture;
+uniform sampler2D lightmap;
 uniform int heldBlockLightValue;
 uniform int heldBlockLightValue2;
 
 in vec2 texcoord;
+in vec2 lmcoord;
 in vec4 glcolor;
 in vec3 playerPos;
 in vec3 normalWorld;
@@ -13,7 +15,9 @@ void main() {
     vec4 texel = texture(gtexture, texcoord);
     if (texel.a < 0.1) discard;
 
-    vec3 color = texel.rgb * glcolor.rgb;
+    // gl_Color 只含面朝向明暗 + AO；天光/方块光在 lightmap 里，必须乘回来
+    vec4 light = texture(lightmap, lmcoord);
+    vec3 color = texel.rgb * glcolor.rgb * light.rgb;
 
     int lv = max(heldBlockLightValue, heldBlockLightValue2);
     if (lv > 0) {
