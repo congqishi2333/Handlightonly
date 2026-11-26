@@ -31,7 +31,9 @@ void main() {
         float diff = max(dot(N, L), 0.0);
         float wrap = max(dot(N, L) * 0.5 + 0.5, 0.0);
 
-        color += HL_TINT * (level * atten * mix(diff, wrap, 0.35) * HL_STRENGTH);
+        // 手光必须乘表面 albedo，否则所有方块都被叠上同一层暖白，看起来灰蒙蒙/褪色
+        float handLight = level * atten * mix(diff, wrap, 0.35) * HL_STRENGTH;
+        color += texel.rgb * HL_TINT * handLight;
     }
 
     outColor0 = vec4(color, texel.a * glcolor.a);

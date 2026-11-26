@@ -59,8 +59,10 @@ int lv = max(heldBlockLightValue, heldBlockLightValue2);
 float level = float(lv) / 15.0;
 float dist = length(playerPos);
 float atten = 1.0 / (1.0 + HL_FALLOFF * dist * dist);
-color += HL_TINT * (level * atten * diff * HL_STRENGTH);
+color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 ```
+
+手光项必须乘 `texel.rgb`：直接加一个固定颜色会让所有方块都混进同一层暖白，看起来灰蒙蒙、颜色发灰。乘回 albedo 后，红石还是红的、草方块还是绿的，只是变亮。
 
 `heldBlockLightValue` 是 Iris/OptiFine 提供的 uniform，表示手持方块的亮度等级（0~15）。
 
