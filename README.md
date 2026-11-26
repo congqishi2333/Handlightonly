@@ -17,6 +17,10 @@
 3. 游戏内：选项 → 视频设置 → 光影 → 选择 `HandLightOnly`
 4. 修改 shader 文件后按 `R` 重载
 
+> **打包注意**：zip 里 `shaders/` 必须在**根目录**（条目形如 `shaders/shaders.properties`）。
+> 不要把整个 `HandLightOnly/` 文件夹压进去，否则 Iris 找不到根目录的 `shaders/`，会报
+> `Pack "..." is not valid! Can't load it.` 并回退到无光影。
+
 适用于 Minecraft 1.21.1 + NeoForge + Iris / Sodium。
 
 ## 文件结构
