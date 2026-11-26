@@ -9,7 +9,7 @@ out vec3 normalWorld;
 void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
-    glcolor  = gl_Color;   // oldLighting=true：面朝向明暗 + AO，不含 lightmap
+    glcolor  = gl_Color;   // oldLighting=false：只含 AO + 方块染色，不含面朝向明暗和 lightmap
 
     vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
 

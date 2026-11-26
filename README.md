@@ -44,7 +44,7 @@ shaders/
 ### 为什么这么轻
 
 - 六个 gbuffers 程序全部显式声明，走 Iris 的原生路由，不依赖 OptiFine 时代的 `gbuffers_textured_lit` 兜底
-- 每个程序文件只有 5 行，实际逻辑都在 `lib/` 的三个 include 里；改参数只需要动 `handlight_settings.glsl`
+- 每个程序文件只有几行，实际逻辑都在 `lib/` 的三个 include 里；改参数只需要动 `handlight_settings.glsl`
 - Sodium/Iris 的 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout` 回退到 `gbuffers_terrain`；`gbuffers_entities_translucent` / `gbuffers_block_translucent` 回退到各自的程序，所以主要几何都被覆盖
 - `shadow.enabled=true`，但不写自己的 `shadow.vsh/.fsh`，用 Iris 默认 shadow shader；gbuffers 里只采样一次 `shadowtex1`，且只压暗天光（方块光不受阴影影响）
 - 没有 composite / deferred，只有一次 `final` 拷贝
@@ -69,6 +69,8 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO 和方块染色，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
 
 方向面光不依赖 Iris 的 `oldLighting`（某些版本下墙面拿不到侧面系数），而是按 `normalWorld` 手动还原：顶面 `1.0`、侧面 `0.8`、底面 `0.5`，只对地形生效。
+
+**注意**：`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 **Iris 不会自动注入**，必须在对应的 `.fsh` 里显式 `#define`（Complementary 也是用 `world0/gbuffers_terrain.fsh` 这样的包装文件定义的）。本包已经在 `gbuffers_terrain.fsh` 和 `gbuffers_hand.fsh` 里定义好了；如果新增程序并用到这些宏，记得同样显式定义。
 
 ## 调参
 
