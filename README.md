@@ -24,15 +24,24 @@
 ```
 shaders/
 ├── shaders.properties
-├── gbuffers_terrain.vsh / .fsh        # 地形显式程序
-├── gbuffers_textured_lit.vsh / .fsh   # 其余受光几何的兜底程序
+├── lib/
+│   ├── handlight_settings.glsl        # 唯一需要调参的地方
+│   ├── handlight_vertex.glsl
+│   └── handlight_fragment.glsl
+├── gbuffers_terrain.vsh / .fsh        # 地形
+├── gbuffers_entities.vsh / .fsh       # 实体
+├── gbuffers_block.vsh / .fsh          # 方块实体 / 告示牌
+├── gbuffers_hand.vsh / .fsh           # 手 / 手持物
+├── gbuffers_water.vsh / .fsh          # 水 / 半透明方块
+├── gbuffers_textured_lit.vsh / .fsh   # 粒子等兜底
 └── final.vsh / .fsh                   # 一次全屏拷贝
 ```
 
 ### 为什么这么轻
 
-- 两个 gbuffers 程序：`gbuffers_terrain` 显式覆盖地形，`gbuffers_textured_lit` 覆盖 entities / block / hand / water / 粒子
-- Sodium/Iris 会把 terrain 拆成 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout`，二者都回退到 `gbuffers_terrain`；只写兜底程序地形可能吃不到手光
+- 六个 gbuffers 程序全部显式声明，走 Iris 的原生路由，不依赖 OptiFine 时代的 `gbuffers_textured_lit` 兜底
+- 每个程序文件只有 5 行，实际逻辑都在 `lib/` 的三个 include 里；改参数只需要动 `handlight_settings.glsl`
+- Sodium/Iris 的 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout` 回退到 `gbuffers_terrain`；`gbuffers_entities_translucent` / `gbuffers_block_translucent` 回退到各自的程序，所以主要几何都被覆盖
 - `shadow.enabled=false`，完全不跑 shadow pass
 - 没有 composite / deferred，只有一次 `final` 拷贝
 - 每像素只在手持光源时多算一次 `length` + `dot` + 除法
@@ -55,7 +64,7 @@ color += HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 ## 调参
 
-在 `shaders/gbuffers_textured_lit.fsh` 顶部：
+在 `shaders/lib/handlight_settings.glsl`（所有程序共用）：
 
 | 宏 | 默认 | 说明 |
 |---|---|---|
