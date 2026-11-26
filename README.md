@@ -68,7 +68,16 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO 和方块染色，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
 
-方向面光不依赖 Iris 的 `oldLighting`（某些版本下墙面拿不到侧面系数），而是按 `normalWorld` 手动还原：顶面 `1.0`、侧面 `0.8`、底面 `0.5`，只对地形生效。
+方向面光不依赖 Iris 的 `oldLighting`（它默认 `false`，且只把系数乘到顶点色上），而是按 `normalWorld` 手动还原原版的四档系数：顶面 `1.0`、南北面 `0.8`、东西面 `0.6`、底面 `0.5`，只对地形生效。
+
+关键是**乘的位置**：原版先把系数乘到光照等级上，再去 lightmap 查表。lightmap 是非线性曲线，查完表再乘系数会让垂直面/底面整体偏亮，只有顶面（系数 `1.0`）不受影响。因此实现里是：
+
+```glsl
+vec2 shadedLm = (lmcoord - 0.03125) * faceLight + 0.03125;
+vec3 lightColor = texture(lightmap, shadedLm).rgb;
+```
+
+`lmcoord` 的编码是 `rawLight / 256 + 0.5/16`（原版光照等级 0~15 占 16 个子阶），所以上面的变换正好等价于缩放原始光照等级。
 
 **注意**：`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 **Iris 不会自动注入**，必须在对应的 `.fsh` 里显式 `#define`（Complementary 也是用 `world0/gbuffers_terrain.fsh` 这样的包装文件定义的）。本包已经在 `gbuffers_terrain.fsh` 和 `gbuffers_hand.fsh` 里定义好了；如果新增程序并用到这些宏，记得同样显式定义。
 
