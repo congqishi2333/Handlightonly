@@ -38,15 +38,16 @@ void main() {
 
             float dist = length(playerPos);
             float atten = 1.0 / (1.0 + HL_FALLOFF * dist * dist);
-            // HL_TINT 直接就是单通道光量（默认三通道各 0.20），HL_STRENGTH 只是倍率。
-            vec3 lightAdd = HL_TINT * ((float(lv) / 15.0) * atten * HL_STRENGTH);
+            float amount = (float(lv) / 15.0) * atten * HL_STRENGTH;
 
-            // 用像素自身色相近似 albedo，再乘上光色：亮部保色相，暗部中性兜底。
-            // albedo 限幅到 1.0，避免高饱和像素被反向放大成爆亮。
-            float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-            vec3 albedo = clamp(color.rgb / max(lum, 0.15), 0.0, 1.0);
-            albedo = mix(vec3(1.0), albedo, smoothstep(0.0, 0.08, lum));
-            color.rgb = clamp(color.rgb + albedo * lightAdd, 0.0, 1.0);
+            // 最大通道归一化：分量天然落在 [0,1]，色相/饱和度完整保留，
+            // 暗的彩色方块不会被暖白兜底替换成灰。
+            float m = max(max(color.r, color.g), color.b);
+            vec3 albedo = color.rgb / max(m, 1e-3) * HL_TINT;
+
+            // screen 混合：结果恒 <= 1，亮处自动少加，不撞上限、不截平细节。
+            // clamp 是高滑块值的安全带，正常参数下不会触发。
+            color.rgb += (1.0 - color.rgb) * clamp(albedo * amount, 0.0, 1.0);
         }
     }
 

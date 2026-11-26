@@ -14,27 +14,26 @@
 vec4 viewPos4 = gbufferProjectionInverse
               * vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
 vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos4.xyz / viewPos4.w, 1.0)).xyz;
-vec3 lightAdd = HL_TINT * ((float(lv) / 15.0) * atten * HL_STRENGTH);
-float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-vec3 albedo = clamp(color.rgb / max(lum, 0.15), 0.0, 1.0);
-albedo = mix(vec3(1.0), albedo, smoothstep(0.0, 0.08, lum));
-color.rgb = clamp(color.rgb + albedo * lightAdd, 0.0, 1.0);
+float amount = (float(lv) / 15.0) * atten * HL_STRENGTH;
+float m = max(max(color.r, color.g), color.b);
+vec3 albedo = color.rgb / max(m, 1e-3) * HL_TINT;
+color.rgb += (1.0 - color.rgb) * clamp(albedo * amount, 0.0, 1.0);
 ```
 
-`lv` 会先夹到 `15`，防止模组方块返回高于原版上限的亮度导致近处爆亮。`HL_TINT` 直接就是单通道光量（默认三通道各 `0.20`，最接近原版），`HL_STRENGTH` 只是倍率。用像素自身色相当 albedo 并限幅：亮部保色相，暗部中性兜底，不会出现高饱和像素被放大成爆亮。
+`lv` 会先夹到 `15`，防止模组方块返回高于原版上限的亮度导致近处爆亮。用**最大通道**归一化代替亮度除法：分量天然落在 `[0,1]`，不会再被放大到撞 `clamp(...,1.0)` 截平；暗的彩色方块归一化后仍是自己的色相，不再用暖白兜底褪成灰。screen 混合让亮处自动少加、暗处仍能抬起。光色由 `HL_TINT` 控制（默认三通道各 `0.20`），亮度由 `HL_STRENGTH` 控制（默认 `0.45`），两个参数不再互相打架。
 
 ## 文件结构
 
 ```
 shaders/
-├── shaders.properties        # 保留原版面光，声明游戏内滑块
+├── shaders.properties        # 只声明游戏内滑块；不写 oldLighting
 ├── lang/zh_cn.lang / en_us.lang  # 滑块名称和提示
 ├── final.vsh / final.fsh     # 唯一实际逻辑，在 final.fsh
 └── lib/handlight_settings.glsl  # 滑块默认值和取值范围
 set-color.ps1 / set-color.cmd     # 输入色号，自动写入 RGB 并同步游戏目录/zip
 ```
 
-`shaders.properties` 里 `oldLighting=true` 保留原版方向面光；`oldHandLight=false` 让主副手亮度分别传给 shader（取较大值）；`screen` / `sliders` 只暴露手光选项。没有使用 `dynamicHandLight`——那是 OptiFine 遗留项，当前 Iris 指令表里没有，写的也会被忽略。
+`shaders.properties` 里**不写** `oldLighting`：本包没有任何 `gbuffers_*` 几何程序，没有代码读 `gl_Color`，原版方向面光是 Iris 默认渲染自带的，写它不会改变画面。`oldHandLight=false` 让主副手亮度分别传给 shader（取较大值）；`screen` / `sliders` 只暴露手光选项。没有使用 `dynamicHandLight`——那是 OptiFine 遗留项，当前 Iris 指令表里没有，写的也会被忽略。
 
 ## 安装
 
@@ -56,13 +55,15 @@ set-color.ps1 / set-color.cmd     # 输入色号，自动写入 RGB 并同步游
 
 | 选项 | 默认 | 范围 / 说明 |
 |---|---|---|
-| `HL_STRENGTH` | `1.50` | 亮度倍率，0.00~3.00 步长 0.10；`0` 等于关闭手光 |
+| `HL_STRENGTH` | `0.45` | 亮度倍率，0.00~3.00 步长 0.10；`0` 等于关闭手光 |
 | `HL_FALLOFF` | `0.11` | 距离衰减，越大光圈越小 |
 | `HL_TINT_R` | `0.20` | 红色光量，0.00~1.00 步长 0.01；`0.20` 最接近原版 |
 | `HL_TINT_G` | `0.20` | 绿色光量，0.00~1.00 步长 0.01；`0.20` 最接近原版 |
 | `HL_TINT_B` | `0.20` | 蓝色光量，0.00~1.00 步长 0.01；`0.20` 最接近原版 |
 
-默认光色是中性灰 `0.20 / 0.20 / 0.20`（色号 `#333333`），不再偏暖；`HL_STRENGTH` 作为整体倍率默认 `1.50`（实际单通道最大约 `0.30`），上限放到 `3.00`，觉得暗可以继续往上拉。模组方块如果返回高于 15 的亮度，会被夹到 15，避免近处爆亮。
+默认光色是中性灰 `0.20 / 0.20 / 0.20`（色号 `#333333`），不再偏暖；screen 混合比旧的除法版温和，`HL_STRENGTH` 起步默认 `0.45`，上限保留 `3.00`，觉得暗可以继续往上拉。模组方块如果返回高于 15 的亮度，会被夹到 15，避免近处爆亮。
+
+**注意**：Iris 会记住你在 Shader Pack Settings 里拖过的滑块值，可能覆盖源码默认值。如果改完源码重载后画面仍像旧参数，先点 **Reset** / 重新选择光影，或清掉该包保存的 shader options。
 
 ### 直接输入色号
 
