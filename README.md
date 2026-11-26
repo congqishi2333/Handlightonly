@@ -24,13 +24,15 @@
 ```
 shaders/
 ├── shaders.properties
-├── gbuffers_textured_lit.vsh / .fsh   # 唯一的世界渲染程序
+├── gbuffers_terrain.vsh / .fsh        # 地形显式程序
+├── gbuffers_textured_lit.vsh / .fsh   # 其余受光几何的兜底程序
 └── final.vsh / .fsh                   # 一次全屏拷贝
 ```
 
 ### 为什么这么轻
 
-- `gbuffers_textured_lit` 是 terrain / entities / block / hand / water / 粒子的统一兜底程序，一个程序覆盖所有受光几何
+- 两个 gbuffers 程序：`gbuffers_terrain` 显式覆盖地形，`gbuffers_textured_lit` 覆盖 entities / block / hand / water / 粒子
+- Sodium/Iris 会把 terrain 拆成 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout`，二者都回退到 `gbuffers_terrain`；只写兜底程序地形可能吃不到手光
 - `shadow.enabled=false`，完全不跑 shadow pass
 - 没有 composite / deferred，只有一次 `final` 拷贝
 - 每像素只在手持光源时多算一次 `length` + `dot` + 除法
@@ -48,6 +50,8 @@ color += HL_TINT * (level * atten * diff * HL_STRENGTH);
 ```
 
 `heldBlockLightValue` 是 Iris/OptiFine 提供的 uniform，表示手持方块的亮度等级（0~15）。
+
+基础颜色只用 `texel.rgb * glcolor.rgb`：`oldLighting=true` 时 `gl_Color` 已经包含原版光照，不再额外乘 `lightmap`，避免重复压暗。
 
 ## 调参
 
