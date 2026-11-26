@@ -45,6 +45,14 @@ void main() {
     // lightmap 用原始 lmcoord 查表：原版本身就是「查表后再乘顶点色」
     vec3 lightColor = texture(lightmap, lmcoord).rgb;
 
+    // 地形轴对齐墙面额外压暗；草/花等 cross 植物是斜法线（|x|≈|z|），跳过
+    float wallDim = 1.0;
+    #ifdef GBUFFERS_TERRAIN
+        vec3 n = normalize(normalWorld);
+        if (abs(n.y) < 0.5 && abs(abs(n.x) - abs(n.z)) > 0.3) wallDim = HL_WALL_DIM;
+    #endif
+    lightColor *= wallDim;
+
     // 阴影只压暗天光部分，方块光不受影响；手持物本身不投射阴影
     float skyLevel = clamp((lmcoord.y - 0.03125) * 1.06667, 0.0, 1.0);
     #ifdef GBUFFERS_HAND

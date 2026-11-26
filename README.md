@@ -72,7 +72,7 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 查表顺序也保持原版：原版 chunk shader 是 `vertexColor = Color * minecraft_sample_lightmap(...)`，即先查 lightmap、再乘顶点色。所以 shader 里直接用 `texture(lightmap, lmcoord)`，不做任何 `lmcoord` 缩放。
 
-`GBUFFERS_HAND` 这类宏 Iris 不会自动注入，`gbuffers_hand.fsh` 里显式 `#define` 了，用来跳过手持物自身的阴影采样。方向面光不再用 `GBUFFERS_TERRAIN`，所以那个宏已经移除。
+`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 Iris 不会自动注入，必须在对应 `.fsh` 里显式 `#define`。本包两个都定义了：前者用于墙面额外压暗，后者用于跳过手持物自身的阴影采样。
 
 ## 调参
 
@@ -83,6 +83,7 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 | `HL_STRENGTH` | `0.60` | 光强，建议 0.35~1.0 |
 | `HL_FALLOFF` | `0.11` | 衰减，越大照射范围越小 |
 | `HL_TINT` | `vec3(1.00, 0.84, 0.62)` | 光色；红石风格可改为 `vec3(1.0, 0.4, 0.2)` |
+| `HL_WALL_DIM` | `0.50` | 地形轴对齐墙面的额外亮度系数；`1.0` 为原版亮度，草/花等斜法线植物不受影响 |
 
 ## 已知取舍
 
