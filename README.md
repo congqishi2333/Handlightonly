@@ -14,11 +14,11 @@
 vec4 viewPos4 = gbufferProjectionInverse
               * vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
 vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos4.xyz / viewPos4.w, 1.0)).xyz;
-float handLight = (float(lv) / 15.0) * atten * HL_STRENGTH;
-color.rgb += color.rgb * HL_TINT * handLight;
+vec3 lightAdd = HL_TINT * ((float(lv) / 15.0) * atten * HL_STRENGTH);
+color.rgb = 1.0 - (1.0 - color.rgb) * (1.0 - lightAdd);
 ```
 
-乘在已有颜色上而不是直接加常数，所以红石还是红的、草还是绿的，只是变亮。因为光源就在相机位置，所有可见物体的正面本来就朝向光源，不需要额外的法线/面光计算，墙面、草、箱子也就不会出现亮度不一致。
+用 screen blend 而不是纯乘法：纯乘法在暗处（`color` 接近 0）几乎抬不动亮度，screen blend 能把黑色抬到 `lightAdd`，接近白色时又不会溢出，同时保留材质色相。因为光源就在相机位置，所有可见物体的正面本来就朝向光源，不需要额外的法线/面光计算，墙面、草、箱子也就不会出现亮度不一致。
 
 ## 文件结构
 
@@ -29,7 +29,7 @@ shaders/
 └── lib/handlight_settings.glsl
 ```
 
-`shaders.properties` 里 `oldLighting=true` 保留原版方向面光；`oldHandLight=false` + `dynamicHandLight=false` 让亮度只由我们这层提供，不重复。
+`shaders.properties` 里 `oldLighting=true` 保留原版方向面光；`oldHandLight=false` 让主副手亮度分别传给 shader（取较大值）。没有使用 `dynamicHandLight`——那是 OptiFine 遗留项，当前 Iris 指令表里没有，写的也会被忽略。
 
 ## 安装
 
@@ -53,6 +53,7 @@ shaders/
 | `HL_STRENGTH` | `0.60` | 手光强度，建议 0.35~1.0 |
 | `HL_FALLOFF` | `0.11` | 距离衰减，越大光圈越小 |
 | `HL_TINT` | `vec3(1.00, 0.84, 0.62)` | 光色；红石风格可改为 `vec3(1.0, 0.4, 0.2)` |
+| `HL_DEBUG` | `0` | 改成 `1` 后画面灰度显示 `heldBlockLightValue / 15`，用来确认 uniform 在 final 里有值 |
 
 ## 已知取舍
 

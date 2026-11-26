@@ -2,4 +2,5 @@
 #define HL_STRENGTH  0.60                    // 光强
 #define HL_FALLOFF   0.11                    // 距离衰减，越大光圈越小
 #define HL_TINT      vec3(1.00, 0.84, 0.62)  // 光色
+#define HL_DEBUG     0                       // 1 = 屏幕灰度显示手持亮度等级 / 15
 // =============================================
