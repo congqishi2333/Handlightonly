@@ -17,17 +17,16 @@ in vec3 normalWorld;
 
 layout(location = 0) out vec4 outColor0;
 
-// 把相机相对的玩家空间坐标投到 shadow map 坐标，沿用 Complementary 的畸变修正
+// 把相机相对的玩家空间坐标投到 shadow map 坐标。
+// 本包没有 shadow.vsh/.fsh，Iris 用内置 shadow pass 写 shadowtex1：
+// 它不做 lens distortion，采样端也绝不能做，否则读写不对称会错位/条纹。
 float GetShadow(vec3 pos) {
-    vec3 shadowView = mat3(shadowModelView) * pos + shadowModelView[3].xyz;
-    vec3 shadowPos = vec3(shadowProjection[0].x, shadowProjection[1].y, shadowProjection[2].z)
-                   * shadowView + shadowProjection[3].xyz;
+    vec3 shadowView = (shadowModelView * vec4(pos, 1.0)).xyz;
+    vec4 shadowClip = shadowProjection * vec4(shadowView, 1.0);
+    vec3 shadowPos = shadowClip.xyz / shadowClip.w * 0.5 + 0.5;
 
-    float bias = 1.0 - 25.6 / shadowDistance;
-    float dist = length(shadowPos.xy);
-    shadowPos.xy /= dist * bias + (1.0 - bias);
-    shadowPos.z *= 0.2;
-    shadowPos = shadowPos * 0.5 + 0.5;
+    // 轻微深度偏移，避免自阴影 acne
+    shadowPos.z -= 0.001;
 
     // 超出阴影贴图覆盖范围时视为无阴影
     if (shadowPos.x < 0.0 || shadowPos.x > 1.0 ||
@@ -39,7 +38,10 @@ float GetShadow(vec3 pos) {
 
 void main() {
     vec4 texel = texture(gtexture, texcoord);
-    if (texel.a < 0.1) discard;
+    // 水/玻璃的半透明边缘不能被全局 alpha 测试裁掉
+    #ifndef GBUFFERS_WATER
+        if (texel.a < 0.1) discard;
+    #endif
 
     // lightmap 用原始 lmcoord 查表，和原版一样「查表后再乘顶点色」
     vec3 lightColor = texture(lightmap, lmcoord).rgb;

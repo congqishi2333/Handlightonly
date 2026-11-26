@@ -47,7 +47,7 @@ shaders/
 - 六个 gbuffers 程序全部显式声明，走 Iris 的原生路由，不依赖 OptiFine 时代的 `gbuffers_textured_lit` 兜底
 - 每个程序文件只有几行，实际逻辑都在 `lib/` 的三个 include 里；参数可以直接在游戏里拖滑块，不用改文件
 - Sodium/Iris 的 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout` 回退到 `gbuffers_terrain`；`gbuffers_entities_translucent` / `gbuffers_block_translucent` 回退到各自的程序，所以主要几何都被覆盖
-- `shadow.enabled=true`，但不写自己的 `shadow.vsh/.fsh`，用 Iris 默认 shadow shader；gbuffers 里只采样一次 `shadowtex1`，且只压暗天光（方块光不受阴影影响）
+- `shadow.enabled=true`，但不写自己的 `shadow.vsh/.fsh`，用 Iris 默认 shadow shader；gbuffers 里只采样一次 `shadowtex1`，且只压暗天光（方块光不受阴影影响）。因为内置 shadow pass 不做 lens distortion，采样端也用纯正交投影 + 微小深度偏移，不做畸变，避免读写不对称
 - 没有 composite / deferred，只有一次 `final` 拷贝
 - 每像素只在手持光源时多算一次 `length` + `dot` + 除法
 
@@ -73,7 +73,7 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 查表顺序保持原版：原版 chunk shader 是 `vertexColor = Color * minecraft_sample_lightmap(...)`，即先查 lightmap、再乘顶点色。所以 shader 里用 `texture(lightmap, lmcoord)`，面光系数也是查表之后乘，不做 `lmcoord` 缩放。
 
-`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 Iris 不会自动注入，必须在对应 `.fsh` 里显式 `#define`。本包两个都定义了：前者用于按朝向应用面光滑块，后者用于跳过手持物自身的阴影采样。
+`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` / `GBUFFERS_WATER` 这类宏 Iris 不会自动注入，必须在对应 `.fsh` 里显式 `#define`。本包三个都定义了：分别用于按朝向应用面光滑块、跳过手持物自身的阴影采样、以及跳过全局 alpha discard（保留水/玻璃半透明边缘）。
 
 ## 调参
 
