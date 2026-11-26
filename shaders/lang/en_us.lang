@@ -1,0 +1,15 @@
+screen.FACE_LIGHT=Face brightness
+option.HL_FACE_TOP=Top face brightness
+option.HL_FACE_NS=North/south wall brightness
+option.HL_FACE_EW=East/west wall brightness
+option.HL_FACE_BOTTOM=Bottom face brightness
+option.HL_FACE_PLANT=Cross-plant brightness
+option.HL_STRENGTH=Hand light strength
+option.HL_FALLOFF=Hand light falloff
+option.HL_FACE_TOP.comment=Brightness multiplier for upward faces, vanilla is 1.0
+option.HL_FACE_NS.comment=Brightness multiplier for north/south walls, vanilla is 0.8
+option.HL_FACE_EW.comment=Brightness multiplier for east/west walls, vanilla is 0.6
+option.HL_FACE_BOTTOM.comment=Brightness multiplier for downward faces, vanilla is 0.5
+option.HL_FACE_PLANT.comment=Brightness for diagonal cross plants such as grass and flowers
+option.HL_STRENGTH.comment=Strength of the light spot while holding a luminous block
+option.HL_FALLOFF.comment=Higher values make the light spot smaller

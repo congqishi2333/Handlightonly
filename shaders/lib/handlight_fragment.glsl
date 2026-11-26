@@ -41,17 +41,20 @@ void main() {
     vec4 texel = texture(gtexture, texcoord);
     if (texel.a < 0.1) discard;
 
-    // 原版方向面光由 oldLighting=true 烘焙进 gl_Color（连 shade:false 的草也正确），
-    // lightmap 用原始 lmcoord 查表：原版本身就是「查表后再乘顶点色」
+    // lightmap 用原始 lmcoord 查表，和原版一样「查表后再乘顶点色」
     vec3 lightColor = texture(lightmap, lmcoord).rgb;
 
-    // 地形轴对齐墙面额外压暗；草/花等 cross 植物是斜法线（|x|≈|z|），跳过
-    float wallDim = 1.0;
+    // 各朝向的亮度完全由 Iris 滑块控制（oldLighting=false 时 gl_Color 只剩 AO + 染色）
     #ifdef GBUFFERS_TERRAIN
         vec3 n = normalize(normalWorld);
-        if (abs(n.y) < 0.5 && abs(abs(n.x) - abs(n.z)) > 0.3) wallDim = HL_WALL_DIM;
+        float faceLight;
+        if      (n.y >  0.5)                          faceLight = HL_FACE_TOP;
+        else if (n.y < -0.5)                          faceLight = HL_FACE_BOTTOM;
+        else if (abs(abs(n.x) - abs(n.z)) < 0.3)       faceLight = HL_FACE_PLANT;  // 草/花等斜法线
+        else if (abs(n.x) > 0.5)                       faceLight = HL_FACE_EW;
+        else                                           faceLight = HL_FACE_NS;
+        lightColor *= faceLight;
     #endif
-    lightColor *= wallDim;
 
     // 阴影只压暗天光部分，方块光不受影响；手持物本身不投射阴影
     float skyLevel = clamp((lmcoord.y - 0.03125) * 1.06667, 0.0, 1.0);

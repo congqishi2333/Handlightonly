@@ -38,13 +38,14 @@ shaders/
 ├── gbuffers_hand.vsh / .fsh           # 手 / 手持物
 ├── gbuffers_water.vsh / .fsh          # 水 / 半透明方块
 ├── gbuffers_textured_lit.vsh / .fsh   # 粒子等兜底
-└── final.vsh / .fsh                   # 一次全屏拷贝
+├── final.vsh / .fsh                   # 一次全屏拷贝
+└── lang/zh_cn.lang, en_us.lang        # 游戏内滑块的中英文标签
 ```
 
 ### 为什么这么轻
 
 - 六个 gbuffers 程序全部显式声明，走 Iris 的原生路由，不依赖 OptiFine 时代的 `gbuffers_textured_lit` 兜底
-- 每个程序文件只有几行，实际逻辑都在 `lib/` 的三个 include 里；改参数只需要动 `handlight_settings.glsl`
+- 每个程序文件只有几行，实际逻辑都在 `lib/` 的三个 include 里；参数可以直接在游戏里拖滑块，不用改文件
 - Sodium/Iris 的 `gbuffers_terrain_solid` / `gbuffers_terrain_cutout` 回退到 `gbuffers_terrain`；`gbuffers_entities_translucent` / `gbuffers_block_translucent` 回退到各自的程序，所以主要几何都被覆盖
 - `shadow.enabled=true`，但不写自己的 `shadow.vsh/.fsh`，用 Iris 默认 shadow shader；gbuffers 里只采样一次 `shadowtex1`，且只压暗天光（方块光不受阴影影响）
 - 没有 composite / deferred，只有一次 `final` 拷贝
@@ -66,24 +67,28 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 `heldBlockLightValue` 是 Iris/OptiFine 提供的 uniform，表示手持方块的亮度等级（0~15）。
 
-基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO、方块染色和原版方向面光（`oldLighting=true`），天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
+基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO 和方块染色，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
 
-方向面光交给 `oldLighting=true`：Iris 会按模型面原本的 `shade` 标志把原版朝向系数烘焙进 `gl_Color`。普通方块是顶面 `1.0` / 南北面 `0.8` / 东西面 `0.6` / 底面 `0.5`；草、花等 cross 植物在模型里写着 `shade:false`，因此系数是 `1.0`，不会被手工法线判定误伤。
+方向面光由滑块决定（`oldLighting=false`，所以 `gl_Color` 不再带朝向系数）：顶面 `1.0` / 南北面 `0.8` / 东西面 `0.6` / 底面 `0.5`，草、花等斜法线植物用单独的 `1.0`。原版系数只是默认值，全部可以在游戏里拖滑块覆盖。
 
-查表顺序也保持原版：原版 chunk shader 是 `vertexColor = Color * minecraft_sample_lightmap(...)`，即先查 lightmap、再乘顶点色。所以 shader 里直接用 `texture(lightmap, lmcoord)`，不做任何 `lmcoord` 缩放。
+查表顺序保持原版：原版 chunk shader 是 `vertexColor = Color * minecraft_sample_lightmap(...)`，即先查 lightmap、再乘顶点色。所以 shader 里用 `texture(lightmap, lmcoord)`，面光系数也是查表之后乘，不做 `lmcoord` 缩放。
 
-`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 Iris 不会自动注入，必须在对应 `.fsh` 里显式 `#define`。本包两个都定义了：前者用于墙面额外压暗，后者用于跳过手持物自身的阴影采样。
+`GBUFFERS_TERRAIN` / `GBUFFERS_HAND` 这类宏 Iris 不会自动注入，必须在对应 `.fsh` 里显式 `#define`。本包两个都定义了：前者用于按朝向应用面光滑块，后者用于跳过手持物自身的阴影采样。
 
 ## 调参
 
-在 `shaders/lib/handlight_settings.glsl`（所有程序共用）：
+游戏内：视频设置 → 光影 → 光影包设置（Shader Pack Settings），在「面向亮度」子屏幕里拖动滑块；改完按 `R` 重载。宏定义在 `shaders/lib/handlight_settings.glsl`，滑块取值范围也写在那里的注释中：
 
-| 宏 | 默认 | 说明 |
+| 选项 | 默认 | 说明 |
 |---|---|---|
-| `HL_STRENGTH` | `0.60` | 光强，建议 0.35~1.0 |
+| `HL_FACE_TOP` | `1.0` | 顶面亮度（原版 1.0） |
+| `HL_FACE_NS` | `0.8` | 南北墙面亮度（原版 0.8） |
+| `HL_FACE_EW` | `0.6` | 东西墙面亮度（原版 0.6） |
+| `HL_FACE_BOTTOM` | `0.5` | 底面亮度（原版 0.5） |
+| `HL_FACE_PLANT` | `1.0` | 草/花等斜法线植物亮度，不参与墙面判定 |
+| `HL_STRENGTH` | `0.60` | 手光强度，建议 0.35~1.0 |
 | `HL_FALLOFF` | `0.11` | 衰减，越大照射范围越小 |
-| `HL_TINT` | `vec3(1.00, 0.84, 0.62)` | 光色；红石风格可改为 `vec3(1.0, 0.4, 0.2)` |
-| `HL_WALL_DIM` | `0.50` | 地形轴对齐墙面的额外亮度系数；`1.0` 为原版亮度，草/花等斜法线植物不受影响 |
+| `HL_TINT` | `vec3(1.00, 0.84, 0.62)` | 光色（不是滑块，需改文件）；红石风格可改为 `vec3(1.0, 0.4, 0.2)` |
 
 ## 已知取舍
 
