@@ -54,7 +54,15 @@ void main() {
     #endif
     lightColor *= skyShadow;
 
-    vec3 color = texel.rgb * glcolor.rgb * lightColor;
+    // 手动还原原版方向面光（oldLighting=false 时 gl_Color 只剩 AO + 染色）：
+    // 顶面 1.0 / 侧面 0.8 / 底面 0.5。只给地形用，实体不需要这套。
+    float faceLight = 1.0;
+    #ifdef GBUFFERS_TERRAIN
+        float ny = normalize(normalWorld).y;
+        faceLight = ny > 0.5 ? 1.0 : (ny < -0.5 ? 0.5 : 0.8);
+    #endif
+
+    vec3 color = texel.rgb * glcolor.rgb * lightColor * faceLight;
 
     int lv = max(heldBlockLightValue, heldBlockLightValue2);
     if (lv > 0) {

@@ -66,7 +66,9 @@ color += texel.rgb * HL_TINT * (level * atten * diff * HL_STRENGTH);
 
 `heldBlockLightValue` 是 Iris/OptiFine 提供的 uniform，表示手持方块的亮度等级（0~15）。
 
-基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`oldLighting=true` 时 `gl_Color` 只包含**面朝向明暗 + AO**，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘 `gl_Color` 会让全世界都亮得像调高了伽马。
+基础颜色必须同时乘 `gl_Color` 和 `lightmap`：`gl_Color` 提供 AO 和方块染色，天光和方块光在 `lightmap` 纹理里。两者不是重复，只乘其中一个都会让画面明显偏离原版。
+
+方向面光不依赖 Iris 的 `oldLighting`（某些版本下墙面拿不到侧面系数），而是按 `normalWorld` 手动还原：顶面 `1.0`、侧面 `0.8`、底面 `0.5`，只对地形生效。
 
 ## 调参
 
