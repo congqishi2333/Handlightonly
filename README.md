@@ -14,11 +14,14 @@
 vec4 viewPos4 = gbufferProjectionInverse
               * vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
 vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos4.xyz / viewPos4.w, 1.0)).xyz;
-vec3 lightAdd = HL_TINT * ((float(lv) / 15.0) * atten * HL_STRENGTH);
-color.rgb = 1.0 - (1.0 - color.rgb) * (1.0 - lightAdd);
+float amount = (float(lv) / 15.0) * atten * HL_STRENGTH;
+float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+vec3 albedo = color.rgb / max(lum, 0.15);
+albedo = mix(HL_TINT * 1.2, albedo, smoothstep(0.0, 0.08, lum));
+color.rgb = clamp(color.rgb + albedo * amount, 0.0, 1.0);
 ```
 
-用 screen blend 而不是纯乘法：纯乘法在暗处（`color` 接近 0）几乎抬不动亮度，screen blend 能把黑色抬到 `lightAdd`，接近白色时又不会溢出，同时保留材质色相。因为光源就在相机位置，所有可见物体的正面本来就朝向光源，不需要额外的法线/面光计算，墙面、草、箱子也就不会出现亮度不一致。
+纯乘法在暗处抬不动亮度；直接加暖白色又会把方块冲成灰。这里用像素自身色相当 albedo 的近似：亮部只补同色光，色相和饱和度不变；纯黑没有色相信息，才用暖色兜底。因为光源就在相机位置，所有可见物体的正面本来就朝向光源，不需要额外的法线/面光计算，墙面、草、箱子也就不会出现亮度不一致。
 
 ## 文件结构
 

@@ -37,10 +37,14 @@ void main() {
 
             float dist = length(playerPos);
             float atten = 1.0 / (1.0 + HL_FALLOFF * dist * dist);
-            vec3 lightAdd = HL_TINT * ((float(lv) / 15.0) * atten * HL_STRENGTH);
+            float amount = (float(lv) / 15.0) * atten * HL_STRENGTH;
 
-            // screen blend：暗处也能抬起来，接近白时不溢出，保留材质色相
-            color.rgb = 1.0 - (1.0 - color.rgb) * (1.0 - lightAdd);
+            // 用像素自身色相近似 albedo：亮部只加同色光，不会被暖白冲成灰；
+            // 纯黑没有色相信息，才用暖色兜底。
+            float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            vec3 albedo = color.rgb / max(lum, 0.15);
+            albedo = mix(HL_TINT * 1.2, albedo, smoothstep(0.0, 0.08, lum));
+            color.rgb = clamp(color.rgb + albedo * amount, 0.0, 1.0);
         }
     }
 
